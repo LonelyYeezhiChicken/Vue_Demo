@@ -1,7 +1,200 @@
-﻿@{
-    ViewBag.Title = "About";
-}
-<h2>@ViewBag.Title.</h2>
-<h3>@ViewBag.Message</h3>
+﻿@*sweetalert*@
+@*-----------------------------------------
+        1.引用JS
+    -----------------------------------------*@
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@10.15.5/dist/sweetalert2.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@10.15.5/dist/sweetalert2.all.js"></script>
+<style>
+    .flex {
+        display: flex;
+        padding: 15px;
+        flex-wrap: wrap;
+    }
 
-<p>Use this area to provide additional information.</p>
+    .divout {
+        text-align: center;
+        font-weight: bold;
+        font-size: 20px;
+        border-color: Silver;
+        border-width: 2px;
+        border-style: solid;
+        border-radius: 10px;
+        height: 100px;
+        width: 130px;
+        margin-bottom: 10px;
+        margin-left: 10px;
+        margin-right: 10px;
+        margin-top: 10px;
+    }
+
+    .divheader {
+        height: 50px;
+        width: 128px;
+        padding: 10px;
+        border-width: 0 0 2px 0;
+        border-style: solid;
+        border-color: Silver;
+    }
+
+    .divmenu {
+        height: 50px;
+        width: 128px;
+        float: left;
+        padding: 10px;
+    }
+
+    .swal-wide {
+        width: 500px;
+    }
+</style>
+
+<div class="row">
+    <h2 class="col-md-12 maintTitle">餐點管理</h2>
+</div>
+<div class="container flex" id="MealSent">
+    @*使用Vue的for迴圈，使用方式類似C#的foreach*@
+    @*Vue畫面上要使用的變數需使用{{}}包起來*@
+    <div v-for="(item,index) in viewDataList" :key="index">
+        @*Asp.net MVC裡Vue的點擊事件 需要使用@@註記*@
+        <div class="divout" @@click="sentMeal(item.orderNum)">
+            <div class="divheader">
+                <font color="DarkGreen">桌號：{{item.Table}}</font>
+            </div>
+            <div class="divmenu" style="text-align: center;">
+                <font color="FireBrick">{{item.MealNum}}</font><br>
+            </div>
+        </div>
+    </div>
+
+</div>
+<div class="col-md-12" style="height:3rem"></div>
+
+
+
+@*1.引用JS*@
+<script src="~/Scripts/vue.js"></script>
+<script src="~/Scripts/jquery-3.3.1.js"></script>
+<script>
+
+    function sendmsg(num) {
+        Swal.fire({
+            width: '500',
+            icon: 'info',
+            title: "A" + num + ' 確定送餐嗎',
+            showDenyButton: true,
+            showCancelButton: false,
+            denyButtonText: `<strong>取消</strong>`,
+            confirmButtonText: `<strong>確定</strong>`,
+            reverseButtons: true
+        }).then((result) => {
+            /* Read more about isConfirmed, isDenied below */
+            if (result.isConfirmed) {
+                Swal.fire({
+                    width: '500',
+                    icon: 'success',
+                    title: '餐號：A' + num,
+                    confirmButtonText: `<strong>確定</strong>`,
+                })
+                //Swal.fire('餐號：A' + num, '', 'success', { width: '500px' })
+            }
+        })
+    }
+
+    //先實例化一個vue
+    var vueApp = new Vue({
+        el: "#MealSent",//範圍宣告需對應到Html會被作用到的id
+        //定義物件
+        data: {
+            //畫面上所需要用的陣列
+            dataList: [],
+        },
+        //init畫面建立DOM生成前就執行(使用:created)
+        //init畫面建立DOM生成後才執行(使用:mounted)
+        mounted() {
+            //在畫面建立的時候需要呼叫方法到後端要資料
+            _self = this;
+            _self.getData();
+
+        },
+        //所有方法都寫在Methods中
+        methods: {
+
+            //使用api到後端要資料
+            getData: function () {
+                //由於在JS中this容易混淆，因此常在方法一開就將this放入變數中
+                var _slef = this;
+                //get api呼叫方法 "Controller名稱/方法名稱"
+                $.get("/Home/MealGetData", function (result) {
+                    //收到回傳後要做的事情
+                    if (result != '') {
+                        //如果有資料就放進變數之中
+                        //在Vue要使用變數都須加上this指向自己
+                        _slef.dataList = JSON.parse(result);//將Json字串轉為物件
+                    }
+                    else {
+                        //do nothing
+                    }
+                });
+            },
+
+            //畫面點擊後觸發此方法
+            sentMeal: function (orderNum,index) {
+                var _self = this;
+                //查詢此筆訂單
+                let _data = _self.dataList.filter(item => item.orderNum == orderNum);
+
+                Swal.fire({
+                    width: '500',
+                    icon: 'info',
+                    title: _data[0].MealNum + ' 確定送餐嗎',
+                    showDenyButton: true,
+                    showCancelButton: false,
+                    denyButtonText: `<strong>取消</strong>`,
+                    confirmButtonText: `<strong>確定</strong>`,
+                    reverseButtons: true
+                }).then((result) => {
+                    /* Read more about isConfirmed, isDenied below */
+                    if (result.isConfirmed) {
+                        //先跳loding的彈窗
+                        //先發送api到後端改狀態及處理資料
+                        //Post api呼叫方法 "Controller名稱/方法名稱",{變數}
+                        $.post("/Home/setMealData", { orderNum: orderNum}, function (result) {
+                            //收到回傳後要做的事情
+                            if (result) {
+                                //如果成功
+                                Swal.fire({
+                                    width: '500',
+                                    icon: 'success',
+                                    title: '餐號：' + _data[0].MealNum,
+                                    confirmButtonText: `<strong>確定</strong>`,
+                                })
+                                //並刪除畫面資料
+                                _self.dataList.splice(index, 1);
+                            }
+                            else {
+                                Swal.fire({
+                                    width: '500',
+                                    icon: 'error',
+                                    title: '餐號：' + _data.MealNum + '送餐失敗，麻煩再試一次',
+                                    confirmButtonText: `<strong>確定</strong>`,
+                                })
+                            }
+                        });
+
+                        //Swal.fire('餐號：A' + num, '', 'success', { width: '500px' })
+                    }
+                })
+            }
+        },
+        //監聽屬性(畫面上會因為發生某個事件或參數的變化，而導致畫面的UI或參數需要跟隨著變化時可使用)
+        computed: {
+            viewDataList: function () {
+                var _self = this;
+                //偵測dataList，如果有變化就會及時回傳
+                return _self.dataList;
+            }
+        }
+    })
+
+
+</script>
